@@ -18,6 +18,8 @@
             height: 100%;
         }
     </style>
+    <!-- Preload texture to ensure model be loaded successfully -->
+    <link rel="preload" href="assets/mary/MC003_Kozakura_Mari.png" as="image" type="image/png" crossorigin/>
     <script src="lib/three.js" defer></script>
     <script src="lib/OrbitControls.js" defer></script>
     <script type="text/javascript" src="lib/MTLLoader.js" defer></script>
@@ -30,6 +32,8 @@
     <script src="src/shaders/InternalShader.js" defer></script>
     <script src="src/shaders/Shader.js" defer></script>
     <script src="src/materials/Material.js" defer></script>
+    <!-- Load phong material **after** Material -->
+    <script src="src/materials/PhongMaterial.js" defer></script>
     <script src="src/textures/Texture.js" defer></script>
 
     <script src="src/objects/Mesh.js" defer></script>
