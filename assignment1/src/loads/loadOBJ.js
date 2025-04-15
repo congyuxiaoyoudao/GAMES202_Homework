@@ -43,14 +43,19 @@ function loadOBJ(renderer, path, name, objMaterial, transform) {
 							}
 
 							let material, shadowMaterial;
+							// Begin Top changes Parse rotation params
 							let Translation = [transform.modelTransX, transform.modelTransY, transform.modelTransZ];
+							let Rotation = [transform.modelRotateX, transform.modelRotateY, transform.modelRotateZ];
 							let Scale = [transform.modelScaleX, transform.modelScaleY, transform.modelScaleZ];
+							// End TOP changes
 
 							let light = renderer.lights[0].entity;
 							switch (objMaterial) {
 								case 'PhongMaterial':
-									material = buildPhongMaterial(colorMap, mat.specular.toArray(), light, Translation, Scale, "./src/shaders/phongShader/phongVertex.glsl", "./src/shaders/phongShader/phongFragment.glsl");
-									shadowMaterial = buildShadowMaterial(light, Translation, Scale, "./src/shaders/shadowShader/shadowVertex.glsl", "./src/shaders/shadowShader/shadowFragment.glsl");
+									// Begin TOP changes Add rotation params for material builder functions
+									material = buildPhongMaterial(colorMap, mat.specular.toArray(), light, Translation, Rotation, Scale, "./src/shaders/phongShader/phongVertex.glsl", "./src/shaders/phongShader/phongFragment.glsl");
+									shadowMaterial = buildShadowMaterial(light, Translation, Rotation, Scale, "./src/shaders/shadowShader/shadowVertex.glsl", "./src/shaders/shadowShader/shadowFragment.glsl");
+									// End TOP changes
 									break;
 							}
 

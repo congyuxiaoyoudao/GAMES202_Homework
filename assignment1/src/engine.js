@@ -51,10 +51,11 @@ function GAMES202Main() {
 	renderer.addLight(directionLight);
 
 	// Add shapes
-	
-	let floorTransform = setTransform(0, 0, -30, 4, 4, 4);
-	let obj1Transform = setTransform(0, 0, 0, 20, 20, 20);
-	let obj2Transform = setTransform(40, 0, -40, 10, 10, 10);
+	// Begin TOP changes Add rotation params
+	let floorTransform = setTransform(0, 0, -30,   0, 0, 0,   4, 4, 4);
+	let obj1Transform  = setTransform(0, 0, 0,     0, 0, 0,   20, 20, 20);
+	let obj2Transform  = setTransform(40, 0, -40,  0, 0, 0,   10, 10, 10);
+	// End TOP changes
 
 	loadOBJ(renderer, 'assets/mary/', 'Marry', 'PhongMaterial', obj1Transform);
 	loadOBJ(renderer, 'assets/mary/', 'Marry', 'PhongMaterial', obj2Transform);
@@ -78,20 +79,34 @@ function GAMES202Main() {
 	}
 	createGUI();
 
+	// Begin TOP changes Pass delta time to renderer 
+	let prev = 0;
 	function mainLoop(now) {
 		cameraControls.update();
-
-		renderer.render();
+		// console.log(now);
+		let deltaTime = (now - prev) / 1000;
+		renderer.render(deltaTime);
 		requestAnimationFrame(mainLoop);
+		prev = now;
+	// End TOP changes
 	}
 	requestAnimationFrame(mainLoop);
 }
 
-function setTransform(t_x, t_y, t_z, s_x, s_y, s_z) {
+function degreeToRadian(degree) {
+	return degree * Math.PI / 180;
+}
+
+function setTransform(t_x, t_y, t_z, r_x, r_y, r_z, s_x, s_y, s_z) {
 	return {
 		modelTransX: t_x,
 		modelTransY: t_y,
 		modelTransZ: t_z,
+		// Begin TOP changes Add rotation
+		modelRotateX: r_x,
+		modelRotateY: r_y,
+		modelRotateZ: r_z,
+		// End TOP changes
 		modelScaleX: s_x,
 		modelScaleY: s_y,
 		modelScaleZ: s_z,

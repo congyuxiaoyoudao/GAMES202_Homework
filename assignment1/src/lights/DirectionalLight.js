@@ -1,7 +1,9 @@
 class DirectionalLight {
 
     constructor(lightIntensity, lightColor, lightPos, focalPoint, lightUp, hasShadowMap, gl) {
-        this.mesh = Mesh.cube(setTransform(0, 0, 0, 0.2, 0.2, 0.2, 0));
+        // Begin TOP changes Add rotation for light
+        this.mesh = Mesh.cube(setTransform(0, 0, 0,    0, 0, 0,    0.2, 0.2, 0.2,    0));
+        // End TOP changes
         this.mat = new EmissiveMaterial(lightIntensity, lightColor);
         this.lightPos = lightPos;
         this.focalPoint = focalPoint;
@@ -15,7 +17,8 @@ class DirectionalLight {
         }
     }
 
-    CalcLightMVP(translate, scale) {
+    // Begin TOP changes Add rotation for CalcLightMVP
+    CalcLightMVP(translate, rotate, scale) {
         let lightMVP = mat4.create();
         let modelMatrix = mat4.create();
         let viewMatrix = mat4.create();
@@ -23,7 +26,11 @@ class DirectionalLight {
         
         // Model transform
         mat4.translate(modelMatrix, modelMatrix, translate);
+        mat4.rotateX(modelMatrix, modelMatrix, rotate[0]);
+        mat4.rotateY(modelMatrix, modelMatrix, rotate[1]);
+        mat4.rotateZ(modelMatrix, modelMatrix, rotate[2]);
         mat4.scale(modelMatrix, modelMatrix, scale);
+    // End TOP changes
 
         // View transform
         mat4.lookAt(viewMatrix, this.lightPos, this.focalPoint, this.lightUp);
@@ -35,7 +42,7 @@ class DirectionalLight {
         var b = -t;
         var n = 0.01;
         // caution！depth of far plane should be a bit more larger
-        var f = 400;
+        var f = 500;
         
         mat4.ortho(projectionMatrix, l, r, b, t, n, f);
 

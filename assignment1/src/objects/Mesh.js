@@ -1,8 +1,11 @@
 class TRSTransform {
-    constructor(translate = [0, 0, 0], scale = [1, 1, 1]) {
+	// Begin TOP changes Add rotation for TRSTransform
+    constructor(translate = [0, 0, 0], rotate = [0, 0, 0], scale = [1, 1, 1]) {
         this.translate = translate;
+		this.rotate = rotate;
         this.scale = scale;
     }
+	// End TOP changes
 }
 class Mesh {
 	constructor(verticesAttrib, normalsAttrib, texcoordsAttrib, indices, transform) {
@@ -12,9 +15,12 @@ class Mesh {
 		this.hasNormals = false;
 		this.hasTexcoords = false;
 
+		// Begin Top changes add rotation for Mesh Ctor
 		const modelTranslation = [transform.modelTransX, transform.modelTransY, transform.modelTransZ];
+		const modelRotation = [transform.modelRotateX, transform.modelRotateY, transform.modelRotateZ];
 		const modelScale = [transform.modelScaleX, transform.modelScaleY, transform.modelScaleZ];
-		let meshTrans = new TRSTransform(modelTranslation, modelScale);
+		let meshTrans = new TRSTransform(modelTranslation, modelRotation, modelScale);
+		// End Top changes
 		this.transform = meshTrans;
 
 		let extraAttribs = [];
