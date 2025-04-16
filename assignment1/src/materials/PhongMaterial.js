@@ -1,7 +1,7 @@
 class PhongMaterial extends Material {
 
-    // Begin TOP changes Add rotation for PhongMaterial Ctor
-    constructor(color, specular, light, translate, rotate, scale, vertexShader, fragmentShader) {
+    // Begin TOP changes Add rotation and light idx for PhongMaterial Ctor
+    constructor(color, specular, light, lightIndex, translate, rotate, scale, vertexShader, fragmentShader) {
         let lightMVP = light.CalcLightMVP(translate, rotate, scale);
     // End TOP changes
         let lightIntensity = light.mat.GetIntensity();
@@ -15,17 +15,18 @@ class PhongMaterial extends Material {
             'uShadowMap': { type: 'texture', value: light.fbo },
             'uLightMVP': { type: 'matrix4fv', value: lightMVP },
 
-        }, [], vertexShader, fragmentShader);
+            // caution! fifth parameter(frameBuffer) should be null
+        }, [], vertexShader, fragmentShader, null, lightIndex);
     }
 }
 
-// Begin TOP changes Add rotation for PhongMaterial builder func
-async function buildPhongMaterial(color, specular, light, translate, rotate, scale, vertexPath, fragmentPath) {
+// Begin TOP changes Add rotation and light idx for PhongMaterial builder func
+async function buildPhongMaterial(color, specular, light, lightIndex, translate, rotate, scale, vertexPath, fragmentPath) {
 
 
     let vertexShader = await getShaderString(vertexPath);
     let fragmentShader = await getShaderString(fragmentPath);
 
-    return new PhongMaterial(color, specular, light, translate, rotate, scale, vertexShader, fragmentShader);
+    return new PhongMaterial(color, specular, light, lightIndex, translate, rotate, scale, vertexShader, fragmentShader);
 // End TOP changes
 }

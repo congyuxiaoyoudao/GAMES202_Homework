@@ -47,9 +47,13 @@ function GAMES202Main() {
 	let lightPos = [0, 80, 80];
 	let focalPoint = [0, 0, 0];
 	let lightUp = [0, 1, 0]
-	const directionLight = new DirectionalLight(5000, [1, 1, 1], lightPos, focalPoint, lightUp, true, renderer.gl);
-	renderer.addLight(directionLight);
-
+	//const directionLight = new DirectionalLight(5000, [1, 1, 1], lightPos, focalPoint, lightUp, true, renderer.gl);
+	//renderer.addLight(directionLight);
+	AddDirectionalLight(renderer, 5000, [1, 0, 1], lightPos, focalPoint, lightUp, true);
+	lightPos = [0, 80, -80];
+	AddDirectionalLight(renderer, 500, [0, 1, 1], lightPos, focalPoint, lightUp, true);
+	lightPos = [80, 80, 0];
+	AddDirectionalLight(renderer, 500, [1, 1, 0], lightPos, focalPoint, lightUp, true);
 	// Add shapes
 	// Begin TOP changes Add rotation params
 	let floorTransform = setTransform(0, 0, -30,   0, 0, 0,   4, 4, 4);
@@ -95,6 +99,11 @@ function GAMES202Main() {
 
 function degreeToRadian(degree) {
 	return degree * Math.PI / 180;
+}
+
+function AddDirectionalLight(renderer, intensity, color, position, focalPoint, up, hasShadowMap) {
+    const directionLight = new DirectionalLight(intensity, color, position, focalPoint, up, hasShadowMap, renderer.gl);
+    renderer.addLight(directionLight);
 }
 
 function setTransform(t_x, t_y, t_z, r_x, r_y, r_z, s_x, s_y, s_z) {

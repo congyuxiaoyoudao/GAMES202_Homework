@@ -33,8 +33,12 @@ class WebGLRenderer {
         gl.enable(gl.DEPTH_TEST); // Enable depth testing
         gl.depthFunc(gl.LEQUAL); // Near things obscure far things
 
-        console.assert(this.lights.length != 0, "No light");
-        console.assert(this.lights.length == 1, "Multiple lights");
+        // console.assert(this.lights.length != 0, "No light");
+        // console.assert(this.lights.length == 1, "Multiple lights");
+
+        for (let i = 0; i < this.meshes.length; i++) {
+            this.meshes[i].mesh.transform.rotate[1] += degreeToRadian(15) * deltaTime;
+        }
 
         for (let l = 0; l < this.lights.length; l++) {
             // Begin TOP changes Clear shadow map each frame or framebuffer will accumulate
@@ -44,7 +48,11 @@ class WebGLRenderer {
             // End TOP changes
 
             // Draw light
-            // TODO: Support all kinds of transform
+            // Begin TOP changes Add rotation for light
+            let lightPos = this.lights[l].entity.lightPos;
+            lightPos = vec3.rotateY(lightPos, lightPos, this.lights[l].entity.focalPoint, degreeToRadian(10) * deltaTime);
+            this.lights[l].entity.lightPos = lightPos;
+            // End TOP changes
             this.lights[l].meshRender.mesh.transform.translate = this.lights[l].entity.lightPos;
             this.lights[l].meshRender.draw(this.camera);
 
@@ -52,15 +60,24 @@ class WebGLRenderer {
             // Shadow pass
             if (this.lights[l].entity.hasShadowMap == true) {
                 for (let i = 0; i < this.shadowMeshes.length; i++) {
+                    if(this.shadowMeshes[i].material.lightIndex != l)
+                        continue;
                     let lightMVP = this.updateMVP(this.shadowMeshes[i].mesh, this.lights[l].entity);
                     this.shadowMeshes[i].material.uniforms.uLightMVP = { type: 'matrix4fv', value: lightMVP };
                     this.shadowMeshes[i].draw(this.camera);
                 }
             }
 
+            if(l != 0)
+            {
+                gl.enable(gl.BLEND);
+                gl.blendFunc(gl.ONE, gl.ONE);
+            }
+
             // Camera pass
             for (let i = 0; i < this.meshes.length; i++) {
-                this.meshes[i].mesh.transform.rotate[1] += degreeToRadian(15) * deltaTime;
+                if(this.meshes[i].material.lightIndex != l)
+                    continue;
                 let lightMVP = this.updateMVP(this.meshes[i].mesh, this.lights[l].entity);
                 this.gl.useProgram(this.meshes[i].shader.program.glShaderProgram);
                 this.meshes[i].material.uniforms.uLightMVP = { type: 'matrix4fv', value: lightMVP };
@@ -69,6 +86,8 @@ class WebGLRenderer {
                 this.meshes[i].draw(this.camera);
             }
             // End TOP changes
+
+            gl.disable(gl.BLEND);
         }
     }
 }

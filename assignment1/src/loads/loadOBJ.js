@@ -49,24 +49,28 @@ function loadOBJ(renderer, path, name, objMaterial, transform) {
 							let Scale = [transform.modelScaleX, transform.modelScaleY, transform.modelScaleZ];
 							// End TOP changes
 
-							let light = renderer.lights[0].entity;
-							switch (objMaterial) {
-								case 'PhongMaterial':
-									// Begin TOP changes Add rotation params for material builder functions
-									material = buildPhongMaterial(colorMap, mat.specular.toArray(), light, Translation, Rotation, Scale, "./src/shaders/phongShader/phongVertex.glsl", "./src/shaders/phongShader/phongFragment.glsl");
-									shadowMaterial = buildShadowMaterial(light, Translation, Rotation, Scale, "./src/shaders/shadowShader/shadowVertex.glsl", "./src/shaders/shadowShader/shadowFragment.glsl");
-									// End TOP changes
-									break;
-							}
+							// Begin TOP changes for each light add material
+							for(let i = 0; i < renderer.lights.length; i++){
+								let light = renderer.lights[i].entity;
+								switch (objMaterial) {
+									case 'PhongMaterial':
+										// Begin TOP changes Add rotation and light idx params for material builder functions
+										material = buildPhongMaterial(colorMap, mat.specular.toArray(), light, i, Translation, Rotation, Scale, "./src/shaders/phongShader/phongVertex.glsl", "./src/shaders/phongShader/phongFragment.glsl");
+										shadowMaterial = buildShadowMaterial(light, i, Translation, Rotation, Scale, "./src/shaders/shadowShader/shadowVertex.glsl", "./src/shaders/shadowShader/shadowFragment.glsl");
+										// End TOP changes
+										break;
+								}
 
-							material.then((data) => {
-								let meshRender = new MeshRender(renderer.gl, mesh, data);
-								renderer.addMeshRender(meshRender);
-							});
-							shadowMaterial.then((data) => {
-								let shadowMeshRender = new MeshRender(renderer.gl, mesh, data);
-								renderer.addShadowMeshRender(shadowMeshRender);
-							});
+								material.then((data) => {
+									let meshRender = new MeshRender(renderer.gl, mesh, data);
+									renderer.addMeshRender(meshRender);
+								});
+								shadowMaterial.then((data) => {
+									let shadowMeshRender = new MeshRender(renderer.gl, mesh, data);
+									renderer.addShadowMeshRender(shadowMeshRender);
+								});
+							}
+							// End TOP changes
 						}
 					});
 				}, onProgress, onError);
