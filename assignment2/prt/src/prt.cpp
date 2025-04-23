@@ -96,6 +96,7 @@ namespace ProjEnv
     {
         std::vector<Eigen::Vector3f> cubemapDirs;
         cubemapDirs.reserve(6 * width * height);
+        // Compute and store all 6 faces' each pixel direction vector(normalized)  
         for (int i = 0; i < 6; i++)
         {
             Eigen::Vector3f faceDirX = cubemapFaceDirections[i][0];
@@ -112,23 +113,36 @@ namespace ProjEnv
                 }
             }
         }
-        constexpr int SHNum = (SHOrder + 1) * (SHOrder + 1);
+        constexpr int SHNum = (SHOrder + 1) * (SHOrder + 1); // SHOrder: l = 2, SHNum: (l+1)^2 = 9
         std::vector<Eigen::Array3f> SHCoeffiecents(SHNum);
         for (int i = 0; i < SHNum; i++)
             SHCoeffiecents[i] = Eigen::Array3f(0);
         float sumWeight = 0;
+        // Compute all 6 faces' each pixel's SH coef by projecting cubemap on basis SH functions
         for (int i = 0; i < 6; i++)
         {
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
-                    // TODO: here you need to compute light sh of each face of cubemap of each pixel
-                    // TODO: 此处你需要计算每个像素下cubemap某个面的球谐系数
                     Eigen::Vector3f dir = cubemapDirs[i * width * height + y * width + x];
                     int index = (y * width + x) * channel;
                     Eigen::Array3f Le(images[i][index + 0], images[i][index + 1],
                                       images[i][index + 2]);
+
+                    // Begin TOP changes Compute SH coef by \sigma_i Le * SH[i] d_\w_i
+                    auto dwi = CalcArea(x, y, width, height);
+                    for (int l = 0; l <= SHOrder; l++) // each level
+                    {
+                        for (int m = -l; m <= l; m++) // each level's basis
+                        {
+                            int SHindex = sh::GetIndex(l, m); // do a remap for index
+                            double SHbasis = sh::EvalSH(l, m, dir.cast<double>().normalized()); // get hard encoded SH basis by l, m
+                            SHCoeffiecents[SHindex] += Le * SHbasis * dwi; // accumulate each pixel's SH coef
+                        }
+                        
+                    }
+                    // End TOP changes
                 }
             }
         }
@@ -203,31 +217,113 @@ public:
         {
             const Point3f &v = mesh->getVertexPositions().col(i);
             const Normal3f &n = mesh->getVertexNormals().col(i);
+            // Begin TOP changes proj function lambda
             auto shFunc = [&](double phi, double theta) -> double {
                 Eigen::Array3d d = sh::ToVector(phi, theta);
                 const auto wi = Vector3f(d.x(), d.y(), d.z());
+                float H = wi.dot(n);
                 if (m_Type == Type::Unshadowed)
                 {
-                    // TODO: here you need to calculate unshadowed transport term of a given direction
-                    // TODO: 此处你需要计算给定方向下的unshadowed传输项球谐函数值
-                    return 0;
+                    return H > 0.0 ? H : 0;
                 }
                 else
                 {
-                    // TODO: here you need to calculate shadowed transport term of a given direction
-                    // TODO: 此处你需要计算给定方向下的shadowed传输项球谐函数值
-                    return 0;
+                    // Visibility term : if incident ray is occluded by scene
+                    float visibility = scene->rayIntersect(Ray3f(v, wi))? 0.0 : 1.0;
+                    return std::max(H,0.0f) * visibility;
                 }
             };
+            // End TOP changes
             auto shCoeff = sh::ProjectFunction(SHOrder, shFunc, m_SampleCount);
             for (int j = 0; j < shCoeff->size(); j++)
             {
-                m_TransportSHCoeffs.col(i).coeffRef(j) = (*shCoeff)[j];
+                m_TransportSHCoeffs.col(i).coeffRef(j) = (*shCoeff)[j] / M_PI;// devide by pi assume that rho = 1
             }
         }
         if (m_Type == Type::Interreflection)
         {
-            // TODO: leave for bonus
+            // for each vertex cast a ray to the scene
+            // if occluded return interpolated sh coef
+            // then recursively call this function
+            for(int i = 0;i < mesh->getVertexCount(); i++)
+            {
+                const Point3f &v = mesh->getVertexPositions().col(i);
+                const Normal3f &n = mesh->getVertexNormals().col(i);
+
+                // iterate lambda
+                // need to pass pos, normal, original coeff and current bounce
+                std::function<std::unique_ptr<std::vector<double>>(Eigen::MatrixXf*, const Point3f&, const Normal3f&, const Scene*, int)> iterateSHFunc;
+                iterateSHFunc = [&](Eigen::MatrixXf* TransportSHCoeffs, const Point3f &pos, const Normal3f &normal, const Scene* s, int bounce) -> std::unique_ptr<std::vector<double>>
+                {
+                    // Step 1: allocate and assign 0 to coeffs
+                    std::unique_ptr<std::vector<double>> coeffs(new std::vector<double>());
+                    coeffs->assign(SHCoeffLength, 0.0);
+                
+                    // Step 2: judge by bounce to terminate
+                    if (bounce > m_Bounce)
+                        return coeffs;
+                
+                    // Step 3: generate sample_side^2 uniformly and stratified samples over the sphere
+                    const int sample_side = static_cast<int>(floor(sqrt(m_SampleCount)));
+                    std::random_device rd;
+                    std::mt19937 gen(rd());
+                    std::uniform_real_distribution<> rng(0.0, 1.0);
+                    for (int t = 0; t < sample_side; t++)
+                    {
+                        for (int p = 0; p < sample_side; p++)
+                        {
+                            double alpha = (t + rng(gen)) / sample_side;
+                            double beta = (p + rng(gen)) / sample_side;
+                            double phi = 2.0 * M_PI * beta;
+                            double theta = acos(2.0 * alpha - 1.0);
+                
+                            // Step 4: for each wi cast a ray to the scene
+                            Eigen::Array3d d = sh::ToVector(phi, theta);
+                            const auto wi = Vector3f(d.x(), d.y(), d.z());
+                            float H = wi.dot(normal); 
+                
+                            Ray3f ray = Ray3f(pos, wi);
+                            Intersection its;
+                            if(H > 0.0 && s->rayIntersect(ray, its))
+                            {
+                                // Step 5: if occluded, get the intersected point and its normal
+                                Point3f intersectPos = its.p;
+                                Vector3f baryCoord = its.bary;
+                                Point3f idx = its.tri_index;
+                                MatrixXf normals = mesh->getVertexNormals();
+                                Normal3f intersectNormal = Normal3f(normals.col(idx.x()).normalized() * baryCoord.x() +
+                                                                        normals.col(idx.y()).normalized() * baryCoord.y() +
+                                                                        normals.col(idx.z()).normalized() * baryCoord.z()).normalized();
+                                auto nextBounceCoeffs = iterateSHFunc(TransportSHCoeffs, intersectPos, intersectNormal, scene, bounce + 1);
+                
+                                // Step 6: accumulate the coeffs
+                                for (int k = 0; k < SHCoeffLength; k++)
+                                {
+                                    auto interpolateSH = (TransportSHCoeffs->col(idx.x()).coeffRef(k) * baryCoord.x() +
+                                                                TransportSHCoeffs->col(idx.y()).coeffRef(k) * baryCoord.y() +
+                                                                TransportSHCoeffs->col(idx.z()).coeffRef(k) * baryCoord.z());
+                
+                                    (*coeffs)[k] += (interpolateSH + (*nextBounceCoeffs)[k]) * H;
+                                }
+                            }
+                        }
+                    }
+                    // Step 7: return the coeffs
+                    double weight = (sample_side * sample_side);
+                    for (unsigned int c = 0; c < coeffs->size(); c++) {
+                        (*coeffs)[c] /= weight;
+                    }
+                
+                    return coeffs;
+                };
+                
+                // Step 8: call the iterateSHFunc
+                auto interreflectCoeffs = iterateSHFunc(&m_TransportSHCoeffs, v, n, scene, 1);
+                for (int j = 0; j < SHCoeffLength; j++)
+                {
+                    m_TransportSHCoeffs.col(i).coeffRef(j) += (*interreflectCoeffs)[j];
+                }
+            }
         }
 
         // Save in face format
@@ -272,13 +368,6 @@ public:
 
         const Vector3f &bary = its.bary;
         Color3f c = bary.x() * c0 + bary.y() * c1 + bary.z() * c2;
-        // TODO: you need to delete the following four line codes after finishing your calculation to SH,
-        //       we use it to visualize the normals of model for debug.
-        // TODO: 在完成了球谐系数计算后，你需要删除下列四行，这四行代码的作用是用来可视化模型法线
-        if (c.isZero()) {
-            auto n_ = its.shFrame.n.cwiseAbs();
-            return Color3f(n_.x(), n_.y(), n_.z());
-        }
         return c;
     }
 
