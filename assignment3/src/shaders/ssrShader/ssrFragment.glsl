@@ -147,8 +147,49 @@ vec3 EvalDirectionalLight(vec2 uv) {
   return Le;
 }
 
+#define MAX_ITERATION 100
+#define INTERSECTION_THRESH 1e-5
+#define RAY_STEP 0.02
+
 bool RayMarch(vec3 ori, vec3 dir, out vec3 hitPos) {
+  vec3 curPos = ori;
+  vec3 rayStride = normalize(dir) * RAY_STEP;
+  
+  for(int i = 0; i < MAX_ITERATION; i++){
+    // get GBuffer infos
+    vec2 screenUV = GetScreenCoordinate(curPos);
+    float rayDepth = GetDepth(curPos);
+    float sceneDepth = GetGBufferDepth(screenUV);
+
+    // test intersection
+    if(rayDepth - sceneDepth >= INTERSECTION_THRESH){
+      hitPos = curPos;
+      return true;
+    }
+    curPos += rayStride;
+  }
   return false;
+}
+
+/*
+ * Evaluate SSR
+ * Assume that pure glossy surface
+ *
+ */
+vec3 EvalSSR(vec3 wi, vec3 wo, vec2 uv) {
+ vec3 L = vec3(0.0);
+ 
+ vec3 posWS = vPosWorld.xyz;
+ vec3 normalWS = GetGBufferNormalWorld(uv);
+ vec3 reflectDir = normalize(reflect(-wo, normalWS));
+ vec3 hitPos = vec3(0.0);
+
+ if(RayMarch(posWS, reflectDir, hitPos)){
+  vec2 screenReflectUV = GetScreenCoordinate(hitPos);
+  L = GetGBufferDiffuse(screenReflectUV);
+ }
+
+ return L;
 }
 
 #define SAMPLE_NUM 1
@@ -162,6 +203,7 @@ void main() {
   vec3 wi = normalize(uLightDir);
   vec3 wo = normalize(uCameraPos - vPosWorld.xyz);
 
+  // L = EvalSSR(wi,wo,screenUV); 
   L = EvalDirectionalLight(screenUV) * EvalDiffuse(wi,wo,screenUV);
   
   vec3 color = pow(clamp(L, vec3(0.0), vec3(1.0)), vec3(1.0 / 2.2));
