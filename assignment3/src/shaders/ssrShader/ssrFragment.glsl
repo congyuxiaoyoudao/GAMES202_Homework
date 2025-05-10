@@ -192,7 +192,40 @@ vec3 EvalSSR(vec3 wi, vec3 wo, vec2 uv) {
  return L;
 }
 
-#define SAMPLE_NUM 1
+#define SAMPLE_NUM 2
+
+vec3 EvalIndirectLight(vec3 wi, vec3 wo, vec2 uv, float s) {
+  vec3 Li,L = vec3(0.0);
+
+  // load TBN matrix
+  vec3 n = GetGBufferNormalWorld(uv);
+  vec3 t, b;
+  LocalBasis(n, t, b);
+  mat3 TBN = mat3(t,b,n);
+
+  float pdf = 0.0;
+  vec3 ori = vPosWorld.xyz;
+  vec3 hitPos = vec3(0.0);
+  vec2 screenIndirectUV = vec2(0.0);
+
+  for(int i=0; i<SAMPLE_NUM; i++){
+    // transform from tangent space to world space
+    // this ray cast from pos0 to pos1
+    // pos1 also serve as a light source
+    vec3 rayDir = normalize(TBN * SampleHemisphereCos(s,pdf));
+
+    if(RayMarch(ori,rayDir,hitPos)){
+      screenIndirectUV = GetScreenCoordinate(hitPos);
+      // light is directional hence for each shading point uses the same wi for lightDir
+      L = EvalDiffuse(rayDir,wo,uv)/pdf * EvalDiffuse(wi,-rayDir,screenIndirectUV) * EvalDirectionalLight(screenIndirectUV);
+      Li += L;
+    }
+
+    }
+
+  Li /= float(SAMPLE_NUM);
+  return Li;
+}
 
 void main() {
   float s = InitRand(gl_FragCoord.xy);
@@ -204,7 +237,7 @@ void main() {
   vec3 wo = normalize(uCameraPos - vPosWorld.xyz);
 
   // L = EvalSSR(wi,wo,screenUV); 
-  L = EvalDirectionalLight(screenUV) * EvalDiffuse(wi,wo,screenUV);
+  L = EvalDirectionalLight(screenUV) * EvalDiffuse(wi,wo,screenUV) + EvalIndirectLight(wi,wo,screenUV,s);
   
   vec3 color = pow(clamp(L, vec3(0.0), vec3(1.0)), vec3(1.0 / 2.2));
   gl_FragColor = vec4(vec3(color.rgb), 1.0);
