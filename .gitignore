@@ -1,1 +1,5 @@
 assignment2/prt/build/
+
+.vscode
+*.png
+*.exe

@@ -31,7 +31,7 @@ samplePoints squareToCosineHemisphere(int sample_count){
             double sampley = (p + rng(gen)) / sample_side;
             
             double theta = 0.5f * acos(1 - 2*samplex);
-            double phi =  2 * M_PI * sampley;
+            double phi =  2 * PI * sampley;
             Vec3f wi = Vec3f(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
             float pdf = wi.z / PI;
             
@@ -82,8 +82,26 @@ Vec3f IntegrateBRDF(Vec3f V, float roughness, float NdotV) {
     
     samplePoints sampleList = squareToCosineHemisphere(sample_count);
     for (int i = 0; i < sample_count; i++) {
-      // TODO: To calculate (fr * ni) / p_o here
-      
+      // calculate (fr * ni) / p_o here
+      Vec3f L = sampleList.directions[i];
+      float pdf = sampleList.PDFs[i];
+
+      float NdotL = dot(N,L);
+      Vec3f H = normalize(V+L);
+
+      // here we assume all lights are reflected, no absorption!
+      // deal with color later
+      float F = 1.0;
+      float NDF = DistributionGGX(N, H, roughness);
+      float G = GeometrySmith(roughness, NdotV, NdotL);
+
+      float nom = F * NDF * G;
+      float denom = std::max(4.0 * NdotL * NdotV,0.001);
+      float fr = nom / denom;
+
+      // accumulate each component
+      A = B = C +=fr*NdotL/pdf;
+
     }
 
     return {A / sample_count, B / sample_count, C / sample_count};
