@@ -1,5 +1,7 @@
-assignment2/prt/build/
-
+**/build/
+assignment5/examples
 .vscode
 *.png
+*.gif
 *.exe
+*.mp4

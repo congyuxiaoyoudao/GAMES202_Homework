@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <cstdint>
 
 #include "util/common.h"
 
